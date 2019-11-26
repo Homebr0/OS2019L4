@@ -23,12 +23,25 @@ static void clook_merged_requests(struct request_queue *q, struct request *rq,
 static int clook_dispatch(struct request_queue *q, int force)
 {
 	struct clook_data *nd = q->elevator->elevator_data;
-
-	if (!list_empty(&nd->queue)) {
-		struct request *rq;
-		rq = list_entry(nd->queue.next, struct request, queuelist);
+	struct request *rq;
+	char direction;
+	
+	rq = list_first_entry_or_null(&nd->queue, struct request, queuelist);
+	if (rq) {
+		// Delete request from list, then sort
 		list_del_init(&rq->queuelist);
 		elv_dispatch_sort(q, rq);
+		
+		// Assign diskhead to position of rq
+		diskhead = blk_rq_pos(rq);
+		
+		// Check direction for read or write
+		if(rq_data_dir(rq) == READ)
+			direction = 'R';
+		else
+			direction = 'W';
+		printk("[CLOOK] dsp %c %lu\n", direction, blk_rq_pos(rq));
+		
 		return 1;
 	}
 	return 0;
