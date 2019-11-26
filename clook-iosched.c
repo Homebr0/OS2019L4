@@ -8,6 +8,8 @@
 #include <linux/slab.h>
 #include <linux/init.h>
 
+int diskhead = -1;
+
 struct clook_data {
 	struct list_head queue;
 };
@@ -35,8 +37,39 @@ static int clook_dispatch(struct request_queue *q, int force)
 static void clook_add_request(struct request_queue *q, struct request *rq)
 {
 	struct clook_data *nd = q->elevator->elevator_data;
-
-	list_add_tail(&rq->queuelist, &nd->queue);
+	struct list_head *cur = NULL;
+	char direction;
+	
+	// Iterate through the request_queue elevator
+	list_for_each(cur, &nd->queue)
+	{
+		// Set cur to cur list_entry
+		struct request *c = list_entry(cur, struct request, queuelist);
+		
+		// If cur position is greater than diskhead...
+		if (blk_rq_pos(rq) > diskhead)
+		{
+			// If the cur position < diskhead OR rq position < cur position... break and add to cur position
+			if(blk_rq_pos(c) < diskhead || blk_rq_pos(rq) < blk_rq_pos(c))
+				break;
+			
+		} else {
+			// cur pos less than disk head
+			// If the cur position < diskhead AND rq position < cur position... break and add to cur position
+			if(blk_rq_pos(c) < diskhead && blk_rq_pos(rq) < blk_rq_pos(c))
+				break;
+		}
+	}
+	
+	// Add cur request to request queue
+	list_add_tail(&rq->queuelist, cur);
+	
+	// Check direction for read or write
+	if(rq_data_dir(rq) == READ)
+		direction = 'R';
+	else
+		direction = 'W';
+	printk("[CLOOK] dsp %c %lu\n", direction, blk_rq_pos(rq));
 }
 
 static struct request *
