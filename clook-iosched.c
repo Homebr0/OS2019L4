@@ -17,7 +17,9 @@ struct clook_data {
 static void clook_merged_requests(struct request_queue *q, struct request *rq,
 				 struct request *next)
 {
+	// Delete request from list, then sort
 	list_del_init(&next->queuelist);
+	elv_dispatch_sort(q, next);
 }
 
 static int clook_dispatch(struct request_queue *q, int force)
@@ -90,9 +92,10 @@ clook_former_request(struct request_queue *q, struct request *rq)
 {
 	struct clook_data *nd = q->elevator->elevator_data;
 
-	if (rq->queuelist.prev == &nd->queue)
-		return NULL;
-	return list_entry(rq->queuelist.prev, struct request, queuelist);
+        if (rq->queuelist.prev == &nd->queue)
+			return NULL;
+        
+		return list_prev_entry(rq, queuelist);
 }
 
 static struct request *
